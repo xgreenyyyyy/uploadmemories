@@ -60,44 +60,49 @@ function createProgressRow(file){
   return { el, level, text };
 }
 
+// new uploadFileBase64 — sends base64 inside a FormData POST (no custom headers)
 function uploadFileBase64(file, onProgress){
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
 
     reader.onload = async () => {
       try {
-        const dataUrl = reader.result;
+        const dataUrl = reader.result; // "data:...;base64,XXXXX"
         const base64 = dataUrl.split(',')[1];
+
         onProgress && onProgress(10);
 
-        // Simple size guard before sending to server
-        if (base64.length > 60 * 1024 * 1024) { // ~60MB base64 ≈ 45MB binary
+        // quick size guard
+        if (base64.length > 60 * 1024 * 1024) {
           return resolve({ ok:false, error: 'File too large for this uploader. Try a smaller file.' });
         }
 
-        const payload = { name: file.name, mimeType: file.type || 'application/octet-stream', base64 };
+        // Build FormData (no manual headers)
+        const fd = new FormData();
+        fd.append('name', file.name);
+        fd.append('mimeType', file.type || 'application/octet-stream');
+        fd.append('base64', base64);
 
-        // POST
-        const fetchOpts = { method:'POST', headers:{ 'Content-Type': 'application/json' }, body: JSON.stringify(payload), mode: 'cors' };
-        const res = await fetch(WEBAPP_URL, fetchOpts);
+        // IMPORTANT: DO NOT set 'Content-Type' header — let the browser set multipart/form-data
+        const res = await fetch(WEBAPP_URL, {
+          method: 'POST',
+          body: fd,
+          mode: 'cors'
+        });
 
-        // If network failure, fetch will throw; if non-2xx, still try to extract body
-        let text;
-        try { text = await res.text(); } catch (e) { text = ''; }
+        // read response text even on non-OK so we can show useful error
+        const text = await res.text().catch(()=>'');
 
         if (!res.ok) {
-          console.error('Server returned non-OK', res.status, text);
-          // try parse JSON body if available
-          try { const j = JSON.parse(text); return resolve(j); } catch (e) { return resolve({ ok:false, error: 'Server error: ' + res.status + ' ' + res.statusText }); }
+          try { const j = JSON.parse(text || '{}'); return resolve(j); } catch(e) { return resolve({ ok:false, error:`Server error ${res.status}` }); }
         }
 
-        // parse JSON safely
+        // parse JSON body
         try {
-          const json = JSON.parse(text);
+          const json = JSON.parse(text || '{}');
           onProgress && onProgress(100);
           return resolve(json);
         } catch (e) {
-          console.error('Failed to parse JSON response:', text);
           return resolve({ ok:false, error: 'Invalid JSON response from server' });
         }
       } catch (err) {
@@ -106,18 +111,10 @@ function uploadFileBase64(file, onProgress){
       }
     };
 
-    reader.onerror = (ev) => {
-      console.error('FileReader error', ev);
-      reject(new Error('FileReader error: ' + (ev && ev.target && ev.target.error && ev.target.error.message ? ev.target.error.message : ev)));
-    };
-
-    // Start reading
-    try {
-      reader.readAsDataURL(file);
-    } catch (err) {
-      reject(err);
-    }
+    reader.onerror = (ev) => reject(new Error('FileReader error: ' + (ev && ev.target && ev.target.error && ev.target.error.message || ev)));
+    reader.readAsDataURL(file);
   });
 }
+
 
 function escapeHtml(s){ return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
