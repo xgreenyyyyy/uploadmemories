@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Upload all the memories</title>
+
+  <!-- Google Font (elegant / modern) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <main class="center">
+    <h1 class="title">Upload all the memories</h1>
+    <p class="sub">Photos & videos — one click, straight to your Drive</p>
+
+    <label class="big-drop" id="drop-area">
+      <input id="file-input" type="file" accept="image/*,video/*" multiple />
+      <div class="icon">📷</div>
+      <div class="big-text">Upload photos & videos</div>
+      <div class="hint">Click to pick files or drag them here</div>
+    </label>
+
+    <div id="progress-area" class="progress-area" aria-live="polite"></div>
+    <small class="note">Files are uploaded to the linked Google Drive folder.</small>
+  </main>
+
+  <script src="js/script.js"></script>
+</body>
+</html>
